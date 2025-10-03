@@ -18,6 +18,7 @@
 */
 
 #import "LDEApplicationWorkspaceInternal.h"
+#import <LindChain/ProcEnvironment/environment.h>
 #import <LindChain/LiveContainer/zip.h>
 #import <Security/Security.h>
 
@@ -248,18 +249,18 @@ bool checkCodeSignature(const char* path);
 /*
  Server + Client Side
  */
-@interface LDEServerDelegate : NSObject <NSXPCListenerDelegate>
+@interface LDEApplicationWorkspaceServerDelegate : NSObject <NSXPCListenerDelegate>
 @end
 
-@interface LDEServerManager : NSObject
-@property (nonatomic, strong) LDEServerDelegate *serverDelegate;
+@interface LDEApplicationWorkspaceServerManager : NSObject
+@property (nonatomic, strong) LDEApplicationWorkspaceServerDelegate *serverDelegate;
 @property (nonatomic, strong) NSXPCListener *listener;
 + (instancetype)sharedManager;
 - (NSXPCListenerEndpoint*)getEndpointForNewConnections;
 @end
 
 
-@implementation LDEServerDelegate
+@implementation LDEApplicationWorkspaceServerDelegate
 
 - (BOOL)listener:(NSXPCListener *)listener shouldAcceptNewConnection:(NSXPCConnection *)newConnection
 {
@@ -285,14 +286,15 @@ bool checkCodeSignature(const char* path);
 
 @end
 
-@implementation LDEServerManager
+@implementation LDEApplicationWorkspaceServerManager
 
-+ (instancetype)sharedManager {
-    static LDEServerManager *sharedInstance = nil;
++ (instancetype)sharedManager
+{
+    static LDEApplicationWorkspaceServerManager *sharedInstance = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         sharedInstance = [[self alloc] init];
-        sharedInstance.serverDelegate = [[LDEServerDelegate alloc] init];
+        sharedInstance.serverDelegate = [[LDEApplicationWorkspaceServerDelegate alloc] init];
         sharedInstance.listener = [sharedInstance.serverDelegate createAnonymousListener];
     });
     return sharedInstance;
@@ -306,7 +308,8 @@ bool checkCodeSignature(const char* path);
 
 @end
 
-NSXPCListenerEndpoint *getLDEApplicationWorkspaceProxyEndpoint(void)
+void ApplicationManagementDaemonEntry(void)
 {
-    return [[LDEServerManager sharedManager] getEndpointForNewConnections];
+    environment_proxy_set_endpoint_for_service_identifier([[LDEApplicationWorkspaceServerManager sharedManager] getEndpointForNewConnections], @"com.cr4zy.appmanagementd");
+    CFRunLoopRun();
 }
